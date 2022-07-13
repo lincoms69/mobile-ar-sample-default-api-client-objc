@@ -60,19 +60,53 @@ extension ARView {
 
     @objc func handleTap(recognizer: UITapGestureRecognizer) {
 
+        let screenBounds = UIScreen.main.bounds
+        let screen_width = screenBounds.width
+        let screen_height = screenBounds.height
+        print("SCN:  \(screen_width),\(screen_height)")
         // タップしたロケーションを取得
         let tapLocation = recognizer.location(in: self)
+        print("TAP:  \(tapLocation)")
+        
+        let frame : ARFrame = session.currentFrame!
+        let slide = 50.0
+        var points = [simd_float3]()
+        for i in 0..<Int(screen_width/slide) {
+            for j in 0..<Int(screen_height/slide) {
+                //print("\(i), \(j)")
+                let pt = CGPoint(x:(Double(i+1)*slide), y:(Double(j+1)*slide))
+                var valid = false
 
+                if (i == 3 && (j == 2 || j == 4))
+                    || (i == 5 && (j == 2 || j == 4)) {
+                    print("\(i), \(j)")
+                    valid = true
+                    points.append(raycasts(from: pt, fm: frame, vd: valid))
+                }
+
+                //raycasts(from: pt, fm: frame, vd: valid)
+            }
+        }
+        
+        let area_1 = calHeron(at: [simd_float3](points[0...2]))
+        let area_2 = calHeron(at: [simd_float3](points[1...3]))
+        let area_all = area_1 + area_2
+        placeCanvas(at: points[0], val: area_all, is: true)
+    }
+    
+    private func raycasts(from point: CGPoint, fm frame: ARFrame, vd valid: Bool) -> simd_float3 {
         // タップした位置に対応する3D空間上の平面とのレイキャスト結果を取得
-        let raycastResults = raycast(from: tapLocation, allowing: .estimatedPlane, alignment: .any)
+        //let raycastResults = raycast(from: tapLocation, allowing: .estimatedPlane, alignment: .any)
+        let raycastResults = raycast(from: point, allowing: .estimatedPlane, alignment: .any)
 
-        guard let firstResult = raycastResults.first else { return }
+        //guard let firstResult = raycastResults.first else { return }
+        guard let firstResult = raycastResults.first else { return simd_float3(0,0,0)}
         
         // taplocationをワールド座標系に変換
         let tapPosition = simd_make_float3(firstResult.worldTransform.columns.3)
         print("TOUCH:  \(tapPosition)")
         
-        let frame : ARFrame = session.currentFrame!
+        //let frame : ARFrame = session.currentFrame!
         //let devicePosition = frame.camera.transform.columns.3
         let devicePosition = simd_make_float3(frame.camera.transform.columns.3)
         print("CAMERA: \(devicePosition)")
@@ -80,17 +114,28 @@ extension ARView {
         let distance = distance(devicePosition, tapPosition)
         print("DIST: \(distance)")
         
-        placeCanvas(at: tapPosition, dist: distance)
+        placeCanvas(at: tapPosition, val: distance, is: false)
+        
+        return tapPosition
+    }
+    
+    /// 3点(三角形)の内部面積を計算する
+    private func calHeron(at points: [simd_float3]) -> Float {
+        let dist_12 = distance(points[0],points[1])
+        let dist_23 = distance(points[1],points[2])
+        let dist_31 = distance(points[2],points[0])
+        let s_1 = (dist_12 + dist_31 + dist_31)/2.0
+        return sqrt(s_1 * (s_1 - dist_12) * (s_1 * dist_23) * (s_1 * dist_31))
     }
 
-    /// キャンバスを配置する
-    private func placeCanvas(at position: SIMD3<Float>, dist distance: Float) {
+    /// キャンバスを配置す
+    private func placeCanvas(at position: SIMD3<Float>, val value: Float, is isArea: Bool) {
         // アンカーを作成
         let anchor = AnchorEntity(world: position)
 
         // テキストを作成
         let textMesh = MeshResource.generateText(
-                    "d:\(distance * 100)cm",
+                    "\(value)\(isArea ? "m2" : "m")",
                     extrusionDepth: 0.1,
                     font: .systemFont(ofSize: 1.0), // 小さいとフォントがつぶれてしまうのでこれぐらいに設定
                     containerFrame: CGRect.zero,
