@@ -90,8 +90,19 @@ extension ARView {
         
         let area_1 = calHeron(at: [simd_float3](points[0...2]))
         let area_2 = calHeron(at: [simd_float3](points[1...3]))
-        let area_all = area_1 + area_2
-        placeCanvas(at: points[0], val: area_all, is: true)
+        let area_all = (area_1 + area_2) * 100 * 100
+        print("AREA :  \(area_all)")
+        var median = simd_float3(0.0, 0.0, 0.0)
+        for pt in points {
+            median.x += pt.x
+            median.y += pt.y
+            median.z += pt.z
+        }
+        median.x = median.x / Float(points.count)
+        median.y = median.y / Float(points.count)
+        median.z = median.z / Float(points.count)
+        
+        placeCanvas(at: median, val: area_all, is: true)
     }
     
     private func raycasts(from point: CGPoint, fm frame: ARFrame, vd valid: Bool) -> simd_float3 {
@@ -124,7 +135,7 @@ extension ARView {
         let dist_12 = distance(points[0],points[1])
         let dist_23 = distance(points[1],points[2])
         let dist_31 = distance(points[2],points[0])
-        let s_1 = (dist_12 + dist_31 + dist_31)/2.0
+        let s_1 = (dist_12 + dist_23 + dist_31)/2.0
         return sqrt(s_1 * (s_1 - dist_12) * (s_1 * dist_23) * (s_1 * dist_31))
     }
 
@@ -135,18 +146,29 @@ extension ARView {
 
         // テキストを作成
         let textMesh = MeshResource.generateText(
-                    "\(value)\(isArea ? "m2" : "m")",
+                    "\(String(format: "%.2f", value))\(isArea ? "cm2" : "m")",
                     extrusionDepth: 0.1,
                     font: .systemFont(ofSize: 1.0), // 小さいとフォントがつぶれてしまうのでこれぐらいに設定
                     containerFrame: CGRect.zero,
                     alignment: .left,
                     lineBreakMode: .byTruncatingTail)
 
+        if !isArea {
+            // 球体を作成
+            let sphereMesh = MeshResource.generateSphere(radius: 0.01)
+            // 環境マッピングするマテリアルを設定
+            let sphereMaterial = SimpleMaterial(color: UIColor.white, roughness: 0.0, isMetallic: true)
+            let sphereModel = ModelEntity(mesh: sphereMesh, materials: [sphereMaterial])
+            sphereModel.position = SIMD3<Float>(0.0, 0.0, 0.0)
+            anchor.addChild(sphereModel)
+        }
+        
         // 環境マッピングするマテリアルを設定
-        let textMaterial = SimpleMaterial(color: UIColor.yellow, roughness: 0.0, isMetallic: true)
+        let textMaterial = SimpleMaterial(color: (isArea ? UIColor.green : UIColor.yellow), roughness: 0.0, isMetallic: true)
         let textModel = ModelEntity(mesh: textMesh, materials: [textMaterial])
         textModel.scale = SIMD3<Float>(0.01, 0.01, 0.01) // 10分の1に縮小
-        textModel.position = SIMD3<Float>(0.0, 0.0, -0.02) // 奥0.2m
+        textModel.position = SIMD3<Float>(0.0, 0.02, 0.0) // 奥0.2m
+        //textModel.position = SIMD3<Float>(0.0, 0.0, -0.02) // 奥0.2m
         anchor.addChild(textModel)
         
         scene.anchors.append(anchor)
