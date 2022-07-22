@@ -60,6 +60,14 @@ extension ARView {
 
     @objc func handleTap(recognizer: UITapGestureRecognizer) {
 
+        snapshot(saveToHDR: false, completion: { (image) in
+            // Compress the image
+            let compressedImage = UIImage(data: (image?.jpegData(compressionQuality: 1.0))!)
+
+            // Save in the photo album
+            UIImageWriteToSavedPhotosAlbum(compressedImage!, nil, nil, nil)
+        })
+
         let screenBounds = UIScreen.main.bounds
         let screen_width = screenBounds.width
         let screen_height = screenBounds.height
