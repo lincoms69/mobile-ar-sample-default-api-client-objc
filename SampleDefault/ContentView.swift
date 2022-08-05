@@ -2,7 +2,7 @@
 //  ContentView.swift
 //  SampleDefault
 //
-//  Created by shinzator60 on 2022/06/22.
+//  Created by Rinks (lincoms69) on 2022/06/22.
 //
 
 import SwiftUI
